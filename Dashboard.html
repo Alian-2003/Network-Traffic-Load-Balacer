@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Load Balancer Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Georgia', 'Times New Roman', serif;
+            background: #00594E;
+            min-height: 100vh;
+            padding: 60px 40px;
+            color: #FFF6E4;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Header - Minimal and Elegant */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 80px;
+            padding-bottom: 30px;
+            border-bottom: 1px solid rgba(255, 246, 228, 0.2);
+        }
+
+        .header h1 {
+            font-size: 42px;
+            font-weight: 300;
+            color: #FFF6E4;
+            letter-spacing: 2px;
+        }
+
+        .port-badge {
+            font-size: 12px;
+            font-weight: 300;
+            color: #FFF6E4;
+            opacity: 0.7;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .status-online {
+            background: #FFF6E4;
+        }
+
+        .status-offline {
+            background: #ef4444;
+        }
+
+        /* Stats - Large, Spacious, Minimal */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 60px;
+            margin-bottom: 120px;
+        }
+
+        .stat-card {
+            text-align: center;
+            padding: 0;
+        }
+
+        .stat-card .value {
+            font-size: 72px;
+            font-weight: 300;
+            color: #FFF6E4;
+            margin-bottom: 15px;
+            line-height: 1;
+        }
+
+        .stat-card .label {
+            font-size: 11px;
+            color: #FFF6E4;
+            opacity: 0.5;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 300;
+        }
+
+        /* Sections - Clean and Spaced */
+        .section {
+            margin-bottom: 100px;
+        }
+
+        .section-title {
+            font-size: 24px;
+            font-weight: 300;
+            margin-bottom: 50px;
+            color: #FFF6E4;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            opacity: 0.7;
+        }
+
+        /* Servers - Minimal Cards */
+        .servers-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 40px;
+        }
+
+        .server-card {
+            background: rgba(255, 246, 228, 0.05);
+            border: 1px solid rgba(255, 246, 228, 0.15);
+            padding: 40px;
+            transition: all 0.3s ease;
+        }
+
+        .server-card:hover {
+            background: rgba(255, 246, 228, 0.08);
+            border-color: rgba(255, 246, 228, 0.3);
+        }
+
+        .server-card.healthy {
+            border-color: rgba(255, 246, 228, 0.3);
+        }
+
+        .server-card.unhealthy {
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .server-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 246, 228, 0.1);
+        }
+
+        .server-name {
+            font-size: 18px;
+            font-weight: 300;
+            color: #FFF6E4;
+            letter-spacing: 1px;
+        }
+
+        .server-badge {
+            font-size: 9px;
+            color: #FFF6E4;
+            opacity: 0.5;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 300;
+        }
+
+        .server-details {
+            display: grid;
+            gap: 15px;
+        }
+
+        .server-detail {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+        }
+
+        .server-detail .label {
+            color: #FFF6E4;
+            opacity: 0.5;
+            font-weight: 300;
+        }
+
+        .server-detail .value {
+            color: #FFF6E4;
+            font-weight: 300;
+        }
+
+        /* Charts - Minimal */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 80px;
+            margin-bottom: 100px;
+        }
+
+        .chart-card {
+            background: rgba(255, 246, 228, 0.03);
+            border: 1px solid rgba(255, 246, 228, 0.1);
+            padding: 50px;
+        }
+
+        .chart-card canvas {
+            max-height: 300px;
+        }
+
+        /* Controls - Minimal Buttons */
+        .controls-section {
+            margin-bottom: 100px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 18px 45px;
+            border: 1px solid rgba(255, 246, 228, 0.3);
+            background: transparent;
+            font-size: 11px;
+            font-weight: 300;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #FFF6E4;
+            font-family: 'Georgia', serif;
+        }
+
+        .btn:hover {
+            background: rgba(255, 246, 228, 0.05);
+            border-color: rgba(255, 246, 228, 0.5);
+        }
+
+        .btn-primary {
+            background: rgba(255, 246, 228, 0.1);
+            border-color: rgba(255, 246, 228, 0.3);
+        }
+
+        .select-wrapper select {
+            padding: 18px 45px;
+            border: 1px solid rgba(255, 246, 228, 0.3);
+            background: #00594E;;
+            font-size: 11px;
+            font-weight: 300;
+            cursor: pointer;
+            color: #fff6E4;
+            appearance: none;
+            font-family: 'Georgia', serif;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        /* Table - Minimal */
+        .request-table {
+            background: rgba(255, 246, 228, 0.03);
+            border: 1px solid rgba(255, 246, 228, 0.1);
+            padding: 50px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead th {
+            color: #FFF6E4;
+            opacity: 0.5;
+            padding: 15px 15px;
+            text-align: left;
+            font-weight: 300;
+            text-transform: uppercase;
+            font-size: 9px;
+            letter-spacing: 2px;
+            border-bottom: 1px solid rgba(255, 246, 228, 0.1);
+        }
+
+        tbody tr {
+            border-bottom: 1px solid rgba(255, 246, 228, 0.05);
+        }
+
+        tbody tr:hover {
+            background: rgba(255, 246, 228, 0.02);
+        }
+
+        tbody td {
+            padding: 12px 15px;
+            color: #FFF6E4;
+            font-size: 13px;
+            font-weight: 300;
+        }
+
+        .server-badge-inline {
+            padding: 4px 10px;
+            font-size: 9px;
+            font-weight: 300;
+            display: inline-block;
+            border: 1px solid rgba(255, 246, 228, 0.2);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .error-message {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #FFF6E4;
+            padding: 30px;
+            margin-bottom: 50px;
+            text-align: center;
+            font-weight: 300;
+            font-size: 13px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 20px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 246, 228, 0.2);
+            transition: .4s;
+            border-radius: 20px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 3px;
+            bottom: 3px;
+            background-color: #FFF6E4;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: rgba(255, 246, 228, 0.3);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(24px);
+        }
+
+        .auto-refresh-label {
+            font-size: 11px;
+            color: #FFF6E4;
+            opacity: 0.7;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-weight: 300;
+        }
+
+        @media (max-width: 1024px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 40px;
+            }
+            
+            .servers-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .charts-grid {
+                grid-template-columns: 1fr;
+                gap: 60px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 30px 20px;
+            }
+
+            .header {
+                flex-direction: column;
+                gap: 20px;
+                align-items: flex-start;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 40px;
+                margin-bottom: 80px;
+            }
+
+            .stat-card .value {
+                font-size: 56px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>Load Balancer</h1>
+                <div class="port-badge">Port 9000 <span class="status-indicator status-online" id="statusIndicator"></span></div>
+            </div>
+            <div class="header-controls">
+                <label style="display: flex; align-items: center; gap: 15px; cursor: pointer;">
+                    <span class="auto-refresh-label">Auto Refresh</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="autoRefreshToggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </label>
+                <button class="btn btn-primary" onclick="refreshDashboard()">Refresh</button>
+            </div>
+        </div>
+
+        <div id="errorMessage" class="error-message" style="display: none;"></div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="value" id="totalRequests">0</div>
+                <div class="label">Total Requests</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="successRate">0%</div>
+                <div class="label">Success Rate</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="algorithm">—</div>
+                <div class="label">Algorithm</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="uptime">0s</div>
+                <div class="label">Uptime</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Backend Servers</h2>
+            <div class="servers-grid" id="serversGrid"></div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Analytics</h2>
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <canvas id="distributionChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <canvas id="responseTimeChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="section controls-section">
+            <h2 class="section-title">Control Panel</h2>
+            <div class="control-group">
+                <button class="btn" onclick="sendRequests(1)">Send 1</button>
+                <button class="btn" onclick="sendRequests(10)">Send 10</button>
+                <button class="btn" onclick="sendRequests(50)">Send 50</button>
+                <button class="btn" onclick="sendRequests(100)">Send 100</button>
+                
+                <div class="select-wrapper">
+                    <select id="algorithmSelect" onchange="changeAlgorithm()">
+                        <option value="round_robin">Round Robin</option>
+                        <option value="least_connections">Least Connections</option>
+                        <option value="weighted">Weighted</option>
+                        <option value="least_response_time">Least Response Time</option>
+                    </select>
+                </div>
+                
+                <button class="btn" onclick="resetStats()">Reset Stats</button>
+                <button class="btn" onclick="clearRequestHistory()">Clear History</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Recent Requests</h2>
+            <div class="request-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Timestamp</th>
+                            <th>Server</th>
+                            <th>Response Time</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="requestTableBody">
+                        <tr>
+                            <td colspan="5" style="text-align: center; padding: 40px; opacity: 0.5;">
+                                No requests yet
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const LB_URL = 'http://localhost:9000';
+        let autoRefresh = true;
+        let refreshInterval;
+        let distributionChart, responseTimeChart;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initCharts();
+            refreshDashboard();
+            startAutoRefresh();
+            
+            document.getElementById('autoRefreshToggle').addEventListener('change', (e) => {
+                autoRefresh = e.target.checked;
+                if (autoRefresh) {
+                    startAutoRefresh();
+                } else {
+                    stopAutoRefresh();
+                }
+            });
+        });
+
+        function initCharts() {
+            const distributionCtx = document.getElementById('distributionChart').getContext('2d');
+            distributionChart = new Chart(distributionCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Backend 1', 'Backend 2', 'Backend 3'],
+                    datasets: [{
+                        data: [0, 0, 0],
+                        backgroundColor: ['rgba(255,246,228,0.7)', 'rgba(255,246,228,0.5)', 'rgba(255,246,228,0.3)'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#FFF6E4',
+                                font: { family: 'Georgia', size: 11 },
+                                padding: 20
+                            }
+                        }
+                    }
+                }
+            });
+
+            const responseTimeCtx = document.getElementById('responseTimeChart').getContext('2d');
+            responseTimeChart = new Chart(responseTimeCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Response Time',
+                        data: [],
+                        borderColor: 'rgba(255,246,228,0.5)',
+                        backgroundColor: 'rgba(255,246,228,0.1)',
+                        borderWidth: 1,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 3,
+                        pointBackgroundColor: 'rgba(255,246,228,0.8)',
+                        pointBorderColor: 'rgba(255,246,228,0.8)',
+                        pointHoverRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255,246,228,0.1)' },
+                            ticks: { color: 'rgba(255,246,228,0.5)', font: { family: 'Georgia', size: 10 } }
+                        },
+                        x: {
+                            grid: { color: 'rgba(255,246,228,0.05)' },
+                            ticks: { color: 'rgba(255,246,228,0.5)', font: { family: 'Georgia', size: 10 } }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        function startAutoRefresh() {
+            refreshInterval = setInterval(refreshDashboard, 2000);
+        }
+
+        function stopAutoRefresh() {
+            if (refreshInterval) clearInterval(refreshInterval);
+        }
+
+        async function refreshDashboard() {
+            try {
+                const response = await fetch(`${LB_URL}/status`);
+                if (!response.ok) throw new Error('Failed to fetch status');
+                
+                const data = await response.json();
+                updateDashboard(data);
+                hideError();
+                document.getElementById('statusIndicator').className = 'status-indicator status-online';
+            } catch (error) {
+                showError('Load Balancer not responding on PORT 9000');
+                document.getElementById('statusIndicator').className = 'status-indicator status-offline';
+            }
+        }
+
+        function updateDashboard(data) {
+            document.getElementById('totalRequests').textContent = data.statistics.total_requests;
+            
+            const successRate = data.statistics.total_requests > 0 
+                ? ((data.statistics.successful_requests / data.statistics.total_requests) * 100).toFixed(1)
+                : 0;
+            document.getElementById('successRate').textContent = successRate + '%';
+            
+            document.getElementById('algorithm').textContent = data.algorithm.replace('_', ' ').toUpperCase();
+            document.getElementById('uptime').textContent = Math.floor(data.uptime) + 's';
+            document.getElementById('algorithmSelect').value = data.algorithm;
+
+            updateServers(data.backend_servers);
+            updateDistributionChart(data.backend_servers);
+
+            if (data.recent_requests && data.recent_requests.length > 0) {
+                updateRequestTable(data.recent_requests);
+            }
+        }
+
+        function updateServers(servers) {
+            const grid = document.getElementById('serversGrid');
+            grid.innerHTML = '';
+
+            servers.forEach(server => {
+                const card = document.createElement('div');
+                card.className = `server-card ${server.healthy ? 'healthy' : 'unhealthy'}`;
+                
+                card.innerHTML = `
+                    <div class="server-header">
+                        <div class="server-name">${server.id}</div>
+                        <div class="server-badge">${server.healthy ? 'Online' : 'Offline'}</div>
+                    </div>
+                    <div class="server-details">
+                        <div class="server-detail">
+                            <span class="label">URL</span>
+                            <span class="value">${server.url.replace('http://localhost:', ':')}</span>
+                        </div>
+                        <div class="server-detail">
+                            <span class="label">Requests</span>
+                            <span class="value">${server.total_requests || 0}</span>
+                        </div>
+                        <div class="server-detail">
+                            <span class="label">Active</span>
+                            <span class="value">${server.active_connections || 0}</span>
+                        </div>
+                        <div class="server-detail">
+                            <span class="label">Avg Time</span>
+                            <span class="value">${server.avg_response_time || 0}s</span>
+                        </div>
+                    </div>
+                `;
+                
+                grid.appendChild(card);
+            });
+        }
+
+        function updateDistributionChart(servers) {
+            const data = servers.map(s => s.total_requests || 0);
+            distributionChart.data.datasets[0].data = data;
+            distributionChart.update();
+        }
+
+        function updateRequestTable(requests) {
+            const tbody = document.getElementById('requestTableBody');
+            tbody.innerHTML = '';
+
+            requests.slice().reverse().slice(0, 20).forEach((req, index) => {
+                const row = document.createElement('tr');
+                
+                row.innerHTML = `
+                    <td>${requests.length - index}</td>
+                    <td>${new Date(req.timestamp).toLocaleTimeString()}</td>
+                    <td><span class="server-badge-inline">${req.server_id}</span></td>
+                    <td>${(req.response_time * 1000).toFixed(0)}ms</td>
+                    <td>${req.status}</td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        }
+
+        function updateResponseTimeChart(responseTime) {
+            const now = new Date().toLocaleTimeString();
+            
+            responseTimeChart.data.labels.push(now);
+            responseTimeChart.data.datasets[0].data.push(responseTime);
+
+            if (responseTimeChart.data.labels.length > 20) {
+                responseTimeChart.data.labels.shift();
+                responseTimeChart.data.datasets[0].data.shift();
+            }
+
+            responseTimeChart.update();
+        }
+
+        async function sendRequests(count) {
+            for (let i = 0; i < count; i++) {
+                try {
+                    const startTime = Date.now();
+                    await fetch(`${LB_URL}/api/process`);
+                    const endTime = Date.now();
+                    const responseTime = endTime - startTime;
+                    
+                    updateResponseTimeChart(responseTime);
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                } catch (error) {
+                    console.error('Request failed:', error);
+                }
+            }
+            setTimeout(refreshDashboard, 100);
+        }
+
+        async function changeAlgorithm() {
+            const algorithm = document.getElementById('algorithmSelect').value;
+            
+            try {
+                const response = await fetch(`${LB_URL}/algorithm`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ algorithm })
+                });
+
+                if (response.ok) {
+                    alert(`Algorithm changed to: ${algorithm.replace('_', ' ')}`);
+                    refreshDashboard();
+                }
+            } catch (error) {
+                alert('Error changing algorithm: ' + error.message);
+            }
+        }
+
+        async function resetStats() {
+            if (!confirm('Reset all statistics?')) return;
+            
+            try {
+                const response = await fetch(`${LB_URL}/reset`, { method: 'POST' });
+
+                if (response.ok) {
+                    responseTimeChart.data.labels = [];
+                    responseTimeChart.data.datasets[0].data = [];
+                    responseTimeChart.update();
+                    alert('Statistics reset successfully');
+                    refreshDashboard();
+                }
+            } catch (error) {
+                alert('Error resetting statistics: ' + error.message);
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        function clearRequestHistory() {
+            if (!confirm('Clear all recent requests from the table?')) return;
+            
+            const tbody = document.getElementById('requestTableBody');
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 40px; opacity: 0.5;">
+                        No requests yet
+                    </td>
+                </tr>
+            `;
+        }
+    </script>
+</body>
+</html>
